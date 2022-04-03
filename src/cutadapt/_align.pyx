@@ -319,6 +319,51 @@ cdef class Aligner:
         """
         self.debug = True
 
+    cdef void _initialize_column(self, int n):
+        # Fill column min_n.
+        #
+        # Four cases:
+        # not startin1, not startin2: c(i,j) = max(i,j); origin(i, j) = 0
+        #     startin1, not startin2: c(i,j) = j       ; origin(i, j) = min(0, j - i)
+        # not startin1,     startin2: c(i,j) = i       ; origin(i, j) =
+        #     startin1,     startin2: c(i,j) = min(i,j)
+
+        # TODO (later)
+        # fill out columns only until 'last'
+        cdef:
+            int i
+            int m = self.m
+            double max_error_rate = self.max_error_rate
+            _Entry* column = self.column
+            # maximum no. of errors
+            int k = <int>(max_error_rate * m)
+            cdef int min_n = 0
+
+        if not self.stop_in_query:
+            min_n = max(0, n - m - k)
+
+        if not self.start_in_reference and not self.start_in_query:
+            for i in range(m + 1):
+                column[i].score = 0
+                column[i].cost = max(i, min_n) * self._insertion_cost
+                column[i].origin = 0
+        elif self.start_in_reference and not self.start_in_query:
+            for i in range(m + 1):
+                column[i].score = 0
+                column[i].cost = min_n * self._insertion_cost
+                column[i].origin = min(0, min_n - i)
+        elif not self.start_in_reference and self.start_in_query:
+            for i in range(m + 1):
+                column[i].score = 0
+                column[i].cost = i * self._insertion_cost
+                column[i].origin = max(0, min_n - i)
+        else:
+            for i in range(m + 1):
+                column[i].score = 0
+                column[i].cost = min(i, min_n) * self._insertion_cost
+                column[i].origin = min_n - i
+
+
     def locate(self, str query):
         """
         locate(query) -> (refstart, refstop, querystart, querystop, score, errors)
@@ -376,37 +421,7 @@ cdef class Aligner:
             max_n = min(n, m + k)
         if not self.stop_in_query:
             min_n = max(0, n - m - k)
-
-        # Fill column min_n.
-        #
-        # Four cases:
-        # not startin1, not startin2: c(i,j) = max(i,j); origin(i, j) = 0
-        #     startin1, not startin2: c(i,j) = j       ; origin(i, j) = min(0, j - i)
-        # not startin1,     startin2: c(i,j) = i       ; origin(i, j) =
-        #     startin1,     startin2: c(i,j) = min(i,j)
-
-        # TODO (later)
-        # fill out columns only until 'last'
-        if not self.start_in_reference and not self.start_in_query:
-            for i in range(m + 1):
-                column[i].score = 0
-                column[i].cost = max(i, min_n) * self._insertion_cost
-                column[i].origin = 0
-        elif self.start_in_reference and not self.start_in_query:
-            for i in range(m + 1):
-                column[i].score = 0
-                column[i].cost = min_n * self._insertion_cost
-                column[i].origin = min(0, min_n - i)
-        elif not self.start_in_reference and self.start_in_query:
-            for i in range(m + 1):
-                column[i].score = 0
-                column[i].cost = i * self._insertion_cost
-                column[i].origin = max(0, min_n - i)
-        else:
-            for i in range(m + 1):
-                column[i].score = 0
-                column[i].cost = min(i, min_n) * self._insertion_cost
-                column[i].origin = min_n - i
+        self._initialize_column(n)
 
         if self.debug:
             self._dpmatrix = DPMatrix(self.reference, query)
