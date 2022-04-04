@@ -1,5 +1,11 @@
-# cython: profile=False, emit_code_comments=False, language_level=3
+# cython: linetrace=True, emit_code_comments=False, language_level=3
+# distutils: define_macros=CYTHON_TRACE_NOGIL=1
+
 from cpython.mem cimport PyMem_Malloc, PyMem_Free, PyMem_Realloc
+
+cdef extern from "<gperftools/profiler.h>":
+    void ProfilerStart( char* fname )
+    void ProfilerStop()
 
 DEF MATCH_SCORE = +1
 DEF MISMATCH_SCORE = -1
@@ -252,6 +258,7 @@ cdef class Aligner:
         self._mismatch_score = MISMATCH_SCORE
         self._insertion_score = INSERTION_SCORE
         self._deletion_score = DELETION_SCORE
+        ProfilerStart("CutadaptLocate.log")
 
     def _compute_flags(self):
         cdef int flags = 0
@@ -600,6 +607,7 @@ cdef class Aligner:
         return (ref_start, best.ref_stop, query_start, best.query_stop, best.score, best.cost)
 
     def __dealloc__(self):
+        ProfilerStop()
         PyMem_Free(self.column)
         PyMem_Free(self.n_counts)
 
