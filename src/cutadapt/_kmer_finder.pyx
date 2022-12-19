@@ -128,9 +128,12 @@ def quick_and_dirty_upper(str sequence):
         uint8_t *src_ptr = <uint8_t *>PyUnicode_DATA(sequence)
         uint8_t *dest_ptr = <uint8_t *>PyUnicode_DATA(dest)
         uint64_t word
-        size_t i,j
+        Py_ssize_t word_length = 0
+        size_t i = 0
+        size_t j = 0
     # Take 8-byte chunks if possible
-    for i in range(0, length - 8, 8):
+    # Max ensures we skip this trick for lengths below 8
+    for i in range(0, max(0, length - 8), 8):
         word = (<uint64_t *>(src_ptr + i))[0]
         (<uint64_t *>(dest_ptr + i))[0] = word & UPPER_CASE_MASK_8
     for j in range(i, length):
