@@ -3,10 +3,12 @@
 from cpython.mem cimport PyMem_Malloc, PyMem_Free
 from libc.string cimport memcpy, strstr
 from cpython.unicode cimport PyUnicode_CheckExact, PyUnicode_GET_LENGTH
+from libc.stdint cimport uint8_t, uint64_t
 
 cdef extern from "Python.h":
     void *PyUnicode_DATA(object o)
     bint PyUnicode_IS_COMPACT_ASCII(object o)
+    object PyUnicode_New(Py_ssize_t size, Py_UCS4 maxchar)
 
 ctypedef struct KmerEntry:
     size_t kmer_offset
@@ -105,3 +107,32 @@ cdef class KmerFinder:
     def __dealloc__(self):
         PyMem_Free(self.kmers)
         PyMem_Free(self.kmer_entries)
+
+# Upper and lower case
+cdef uint8_t UPPER_CASE_MASK = 0b11011111
+cdef uint64_t UPPER_CASE_MASK_8 = 0b11011111_11011111_11011111_11011111_11011111_11011111_11011111_11011111
+def quick_and_dirty_upper(str sequence):
+    """
+    Quick and dirty convert to uppercase
+
+    upper and lowercase ASCII alphabetic characters differ by just one bit
+    that can be switched on or off. Problem is that this also switches some
+    non-alphabetic characters. This function is for applications where this
+    does not matter.
+    """
+    if not PyUnicode_IS_COMPACT_ASCII(sequence):
+        raise ValueError(f"Sequence should be ASCII")
+    cdef:
+        Py_ssize_t length = PyUnicode_GET_LENGTH(sequence)
+        object dest = PyUnicode_New(length, 127)
+        uint8_t *src_ptr = <uint8_t *>PyUnicode_DATA(sequence)
+        uint8_t *dest_ptr = <uint8_t *>PyUnicode_DATA(dest)
+        uint64_t word
+        size_t i,j
+    # Take 8-byte chunks if possible
+    for i in range(0, length - 8, 8):
+        word = (<uint64_t *>(src_ptr + i))[0]
+        (<uint64_t *>(dest_ptr + i))[0] = word & UPPER_CASE_MASK_8
+    for j in range(i, length):
+        (dest_ptr + j)[0] = (src_ptr +j)[0] & UPPER_CASE_MASK
+    return dest

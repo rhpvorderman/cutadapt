@@ -10,7 +10,7 @@ from collections import defaultdict
 from typing import Optional, Tuple, Sequence, Dict, Any, List, Union
 from abc import ABC, abstractmethod
 
-from ._kmer_finder import KmerFinder
+from ._kmer_finder import KmerFinder, quick_and_dirty_upper
 from .align import (
     EndSkip,
     Aligner,
@@ -767,7 +767,9 @@ class BackAdapter(SingleAdapter):
         overlap length, maximum error rate).
         """
         # Heuristically check if an adapter may be present. If not, skip.
-        if self.adapter_heuristic and not self.adapter_heuristic(sequence.upper()):
+        if self.adapter_heuristic and not self.adapter_heuristic(
+            quick_and_dirty_upper(sequence)
+        ):
             return None
         alignment: Optional[Tuple[int, int, int, int, int, int]] = self.aligner.locate(
             sequence
