@@ -200,7 +200,7 @@ class AdapterCutter(SingleEndModifier):
             self.with_adapters += 1
             for match in matches:
                 self.adapter_statistics[match.adapter].add_match(match)
-        info.matches.extend(matches)  # TODO extend or overwrite?
+            info.matches.extend(matches)  # TODO extend or overwrite?
         return trimmed_read
 
     def match_and_trim(self, read):
