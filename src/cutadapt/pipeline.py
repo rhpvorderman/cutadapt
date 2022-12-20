@@ -12,6 +12,7 @@ import traceback
 
 import dnaio
 
+from ._basecounter import PairedBaseCounter
 from .utils import (
     Progress,
     DummyProgress,
@@ -560,6 +561,8 @@ class PairedEndPipeline(Pipeline):
         # Whether to ignore pair_filter mode for discard-untrimmed filter
         self.override_untrimmed_pair_filter = False
         self._add_modifiers(modifiers)
+        self._base_counter = PairedBaseCounter()
+        self._add_modifier(self._base_counter.count_bases)
 
     def _add_modifiers(self, modifiers):
         for modifier in modifiers:
@@ -590,15 +593,11 @@ class PairedEndPipeline(Pipeline):
         self, progress: Optional[Progress] = None
     ) -> Tuple[int, int, Optional[int]]:
         n = 0  # no. of processed reads
-        total1_bp = 0
-        total2_bp = 0
         assert self._reader is not None
         for read1, read2 in self._reader:
             n += 1
             if n % 10000 == 0 and progress is not None:
                 progress.update(10000)
-            total1_bp += len(read1)
-            total2_bp += len(read2)
             info1 = ModificationInfo(read1)
             info2 = ModificationInfo(read2)
             for modifier in self._modifiers:
@@ -609,7 +608,7 @@ class PairedEndPipeline(Pipeline):
                     break
         if progress is not None:
             progress.update(n % 10000)
-        return (n, total1_bp, total2_bp)
+        return (n, self._base_counter.total_bp1, self._base_counter.total_bp2)
 
     def _open_writer(
         self,
