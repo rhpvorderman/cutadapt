@@ -66,6 +66,10 @@ class PairedEndModifierWrapper(PairedEndModifier):
         self._modifier2 = modifier2
         if self._modifier1 is None and self._modifier2 is None:
             raise ValueError("Not both modifiers may be None")
+        if self._modifier1 is None:
+            self._modifier1 = lambda read, info: read
+        if self._modifier2 is None:
+            self._modifier2 = lambda read, info: read
 
     def __repr__(self):
         return (
@@ -74,10 +78,6 @@ class PairedEndModifierWrapper(PairedEndModifier):
         )
 
     def __call__(self, read1, read2, info1: ModificationInfo, info2: ModificationInfo):
-        if self._modifier1 is None:
-            return read1, self._modifier2(read2, info2)  # type: ignore
-        if self._modifier2 is None:
-            return self._modifier1(read1, info1), read2
         return self._modifier1(read1, info1), self._modifier2(read2, info2)
 
 
