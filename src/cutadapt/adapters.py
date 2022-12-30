@@ -1082,6 +1082,8 @@ class MultipleAdapters(Matchable):
     def __init__(self, adapters: Sequence[Matchable]):
         super().__init__(name="multiple_adapters")
         self._adapters = adapters
+        if len(adapters) == 1:
+            self.match_to = adapters[0].match_to
 
     def enable_debug(self):
         for a in self._adapters:
