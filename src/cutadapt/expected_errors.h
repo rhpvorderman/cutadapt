@@ -100,57 +100,14 @@ static const float SCORE_TO_ERROR_RATE[94] = {
     5.011872336272714E-10L,   // 93
 };
 
-static inline float 
-expected_errors_from_phreds(const uint8_t *phreds, size_t phreds_length, uint8_t base) {
+
+static float 
+default_expected_errors_from_phreds(const uint8_t *phreds, size_t phreds_length, uint8_t base) {
     const uint8_t *end_ptr = phreds + phreds_length;
     const uint8_t *cursor = phreds;
     float expected_errors = 0.0;
     uint8_t max_phred = 126 - base;
-    #ifdef __SSE2__ 
-    const uint8_t *vec_end_ptr = end_ptr - sizeof(__m128i);
-    __m128 accumulator = _mm_set1_ps(0.0);
-    while (cursor < vec_end_ptr) {
-        __m128i phred_array = _mm_loadu_si128((__m128i *)cursor);
-        __m128i illegal_phreds = _mm_cmpgt_epi8(phred_array, _mm_set1_epi8(max_phred));
-        illegal_phreds = _mm_or_si128(
-            illegal_phreds, _mm_cmplt_epi8(phred_array, _mm_set1_epi8(base)));
-        if (_mm_movemask_epi8(illegal_phreds)) {
-            return -1.0;
-        }
-        __m128 loader = _mm_set_ps(
-            SCORE_TO_ERROR_RATE[cursor[0] - base],
-            SCORE_TO_ERROR_RATE[cursor[1] - base],
-            SCORE_TO_ERROR_RATE[cursor[2] - base],
-            SCORE_TO_ERROR_RATE[cursor[3] - base]
-        );
-        accumulator = _mm_add_ps(accumulator, loader);
-        loader = _mm_set_ps(
-            SCORE_TO_ERROR_RATE[cursor[4] - base],
-            SCORE_TO_ERROR_RATE[cursor[5] - base],
-            SCORE_TO_ERROR_RATE[cursor[6] - base],
-            SCORE_TO_ERROR_RATE[cursor[7] - base]
-        );
-        accumulator = _mm_add_ps(accumulator, loader);
-        loader = _mm_set_ps(
-            SCORE_TO_ERROR_RATE[cursor[8] - base],
-            SCORE_TO_ERROR_RATE[cursor[9] - base],
-            SCORE_TO_ERROR_RATE[cursor[10] - base],
-            SCORE_TO_ERROR_RATE[cursor[11] - base]
-        );
-        accumulator = _mm_add_ps(accumulator, loader);
-        loader = _mm_set_ps(
-            SCORE_TO_ERROR_RATE[cursor[12] - base],
-            SCORE_TO_ERROR_RATE[cursor[13] - base],
-            SCORE_TO_ERROR_RATE[cursor[14] - base],
-            SCORE_TO_ERROR_RATE[cursor[15] - base]
-        );
-        accumulator = _mm_add_ps(accumulator, loader);
-        cursor += sizeof(__m128i);
-    }
-    float float_store[4];
-    _mm_store_ps(float_store, accumulator);
-    expected_errors = float_store[0] + float_store[1] + float_store[2] + float_store[3];
-    #endif
+
     while (cursor < end_ptr) {
         uint8_t phred = *cursor - base;
         if (phred > max_phred) {
@@ -161,3 +118,85 @@ expected_errors_from_phreds(const uint8_t *phreds, size_t phreds_length, uint8_t
     }
     return expected_errors;
 }
+
+#ifdef __GOBBLEDYGOOK__ 
+static float 
+avx2_expected_errors_from_phreds(const uint8_t *phreds, size_t phreds_length, uint8_t base) {
+
+}
+
+static float (*resolve_expected_errors_from_phreds(void)) (const uint8_t *, size_t, uint8_t) {
+    __builtin_cpu_init();
+    if (__builtin_cpu_supports("gobbledygook")) {
+        return avx2_expected_errors_from_phreds;
+    }
+    else {
+        return default_expected_errors_from_phreds;
+    }
+}
+static float expected_errors_from_phreds = 
+#else 
+static float (*expected_errors_from_phreds(void)) (const uint8_t *, size_t, uint8_t) = default_expected_errors_from_phreds;
+#endif
+
+// static inline float 
+// expected_errors_from_phreds(const uint8_t *phreds, size_t phreds_length, uint8_t base) {
+//     const uint8_t *end_ptr = phreds + phreds_length;
+//     const uint8_t *cursor = phreds;
+//     float expected_errors = 0.0;
+//     uint8_t max_phred = 126 - base;
+//     #ifdef __SSE2__ 
+//     const uint8_t *vec_end_ptr = end_ptr - sizeof(__m128i);
+//     __m128 accumulator = _mm_set1_ps(0.0);
+//     while (cursor < vec_end_ptr) {
+//         __m128i phred_array = _mm_loadu_si128((__m128i *)cursor);
+//         __m128i illegal_phreds = _mm_cmpgt_epi8(phred_array, _mm_set1_epi8(max_phred));
+//         illegal_phreds = _mm_or_si128(
+//             illegal_phreds, _mm_cmplt_epi8(phred_array, _mm_set1_epi8(base)));
+//         if (_mm_movemask_epi8(illegal_phreds)) {
+//             return -1.0;
+//         }
+//         __m128 loader = _mm_set_ps(
+//             SCORE_TO_ERROR_RATE[cursor[0] - base],
+//             SCORE_TO_ERROR_RATE[cursor[1] - base],
+//             SCORE_TO_ERROR_RATE[cursor[2] - base],
+//             SCORE_TO_ERROR_RATE[cursor[3] - base]
+//         );
+//         accumulator = _mm_add_ps(accumulator, loader);
+//         loader = _mm_set_ps(
+//             SCORE_TO_ERROR_RATE[cursor[4] - base],
+//             SCORE_TO_ERROR_RATE[cursor[5] - base],
+//             SCORE_TO_ERROR_RATE[cursor[6] - base],
+//             SCORE_TO_ERROR_RATE[cursor[7] - base]
+//         );
+//         accumulator = _mm_add_ps(accumulator, loader);
+//         loader = _mm_set_ps(
+//             SCORE_TO_ERROR_RATE[cursor[8] - base],
+//             SCORE_TO_ERROR_RATE[cursor[9] - base],
+//             SCORE_TO_ERROR_RATE[cursor[10] - base],
+//             SCORE_TO_ERROR_RATE[cursor[11] - base]
+//         );
+//         accumulator = _mm_add_ps(accumulator, loader);
+//         loader = _mm_set_ps(
+//             SCORE_TO_ERROR_RATE[cursor[12] - base],
+//             SCORE_TO_ERROR_RATE[cursor[13] - base],
+//             SCORE_TO_ERROR_RATE[cursor[14] - base],
+//             SCORE_TO_ERROR_RATE[cursor[15] - base]
+//         );
+//         accumulator = _mm_add_ps(accumulator, loader);
+//         cursor += sizeof(__m128i);
+//     }
+//     float float_store[4];
+//     _mm_store_ps(float_store, accumulator);
+//     expected_errors = float_store[0] + float_store[1] + float_store[2] + float_store[3];
+//     #endif
+//     while (cursor < end_ptr) {
+//         uint8_t phred = *cursor - base;
+//         if (phred > max_phred) {
+//             return -1.0;
+//         }
+//         expected_errors += SCORE_TO_ERROR_RATE[phred];
+//         cursor += 1;
+//     }
+//     return expected_errors;
+// }
