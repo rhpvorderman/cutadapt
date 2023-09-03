@@ -98,6 +98,8 @@ static const float SCORE_TO_ERROR_RATE[94] = {
     5.011872336272714E-10L,   // 93
 };
 
+extern __m256 _mm256_exp10_ps(__m256 v1);
+
 static inline float 
 expected_errors_from_phreds(const uint8_t *phreds, size_t phreds_length, uint8_t base) {
     const uint8_t *end_ptr = phreds + phreds_length;
@@ -118,8 +120,13 @@ expected_errors_from_phreds(const uint8_t *phreds, size_t phreds_length, uint8_t
         __m256i indexes_lower = _mm256_cvtepi8_epi32(indexes);
         __m128i indexes_upper_epi8 = _mm_unpackhi_epi64(indexes, _mm_setzero_si128());
         __m256i indexes_upper = _mm256_cvtepi8_epi32(indexes_upper_epi8);
-        __m256 probabilities_lower = _mm256_i32gather_ps(SCORE_TO_ERROR_RATE, indexes_lower, sizeof(float));
-        __m256 probabilities_upper = _mm256_i32gather_ps(SCORE_TO_ERROR_RATE, indexes_upper, sizeof(float));
+        __m256 indexes_float_lower = _mm256_cvtepi32_ps(indexes_lower);
+        __m256 indexes_float_upper = _mm256_cvtepi32_ps(indexes_upper);
+        __m256 powers_lower = _mm256_div_ps(indexes_float_lower, _mm256_set1_ps(-10.0));
+        __m256 powers_upper = _mm256_div_ps(indexes_float_upper, _mm256_set1_ps(-10.0));
+        
+        __m256 probabilities_lower = _mm256_exp10_ps(powers_lower);
+        __m256 probabilities_upper = _mm256_exp10_ps(powers_upper);
         accumulator = _mm256_add_ps(accumulator, probabilities_lower);
         accumulator = _mm256_add_ps(accumulator, probabilities_upper);
         cursor += sizeof(__m128i);
