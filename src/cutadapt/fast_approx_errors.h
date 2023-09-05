@@ -27,7 +27,7 @@ approx_expected_errors(uint8_t *phreds, size_t phreds_length) {
         uint64_t exp = 1023 - ((phred + 2) / 3);
         uint64_t mod = phred % 3;
         uint64_t a = A0 + mod * A1_FACTOR - (mod & 2) * A2_FACTOR;
-        uint64_t b = B0 + mod * B2_FACTOR - (mod & 2) * B2_FACTOR;
+        uint64_t b = B0 + mod * B1_FACTOR - (mod & 2) * B2_FACTOR;
         uint64_t significand = a * phred + b;
         prob.i = (exp << EXPONENT_SHIFT) | significand;
         expected_errors += prob.f;
