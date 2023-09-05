@@ -13,6 +13,9 @@ cdef extern from *:
     int PyUnicode_1BYTE_KIND
 
 
+cdef extern from "fast_approx_errors.h":
+    double approx_expected_errors(uint8_t *phreds, size_t phreds_length)
+
 cdef class HasNoQualities(Exception):
     pass
 
@@ -164,12 +167,9 @@ def expected_errors(str qualities, uint8_t base=33):
         uint8_t phred, q
         uint8_t *quals = <uint8_t *>PyUnicode_DATA(qualities)
         size_t qual_length = PyUnicode_GET_LENGTH(qualities)
-        double e = 0.0
+        double e = approx_expected_errors(quals, qual_length)
+    
+    if (e < 0.0):
+        raise ValueError(f"Found invalid phred in {qualities}")
 
-    for i in range(qual_length):
-        phred = quals[i]
-        q = phred - base
-        if q > 93:
-            raise ValueError(f"Not a valid phred value {q} for character {ord(q)}")
-        e += QUAL_TO_ERROR_RATE[q]
     return e
